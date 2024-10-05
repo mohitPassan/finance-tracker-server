@@ -82,18 +82,30 @@ func (trackerDb *trackerDb) getAllItems(c echo.Context) error {
 	return c.JSON(http.StatusOK, successData)
 }
 
-func (trackerDb *trackerDb) deleteItem(c echo.Context) error {
+func (trackerDb *trackerDb) getItemFromId(c echo.Context) error {
 	ctx := context.Background()
-	var item *Item
-	item = new(Item)
+	id := c.Param("id")
 
-	err := c.Bind(item)
+	var item Item
+	err := trackerDb.db.NewSelect().TableExpr("item").Where("id = ?", id).Scan(ctx, &item)
 	if err != nil {
-		log.Printf("Error while binding: %+v", err)
+		log.Printf("Could not fetch item: %+v", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 
-	res, err := trackerDb.db.NewDelete().Model(item).Where("id = ?", item.ID).Exec(ctx)
+	successData := map[string]interface{}{
+		"message": "ok",
+		"data":    item,
+	}
+
+	return c.JSON(http.StatusOK, successData)
+}
+
+func (trackerDb *trackerDb) deleteItem(c echo.Context) error {
+	ctx := context.Background()
+	id := c.Param("id")
+
+	res, err := trackerDb.db.NewDelete().TableExpr("item").Where("id = ?", id).Exec(ctx)
 	if err != nil {
 		log.Printf("Error while deleting: %+v", err)
 		return c.JSON(http.StatusInternalServerError, err)
@@ -150,7 +162,8 @@ func main() {
 	})
 	apiv1.POST("/item", trackerDb.addItem)
 	apiv1.GET("/items", trackerDb.getAllItems)
-	apiv1.DELETE("/delete/item", trackerDb.deleteItem)
+	apiv1.GET("/items/:id", trackerDb.getItemFromId)
+	apiv1.DELETE("/items/:id", trackerDb.deleteItem)
 	apiv1.PATCH("/update/item", trackerDb.updateItem)
 
 	e.Logger.Fatal(e.Start(":1323"))
