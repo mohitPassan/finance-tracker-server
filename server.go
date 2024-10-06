@@ -143,6 +143,61 @@ func (trackerDb *trackerDb) updateItem(c echo.Context) error {
 	return c.JSON(http.StatusOK, successData)
 }
 
+type CategoriesVsExpensesRow struct {
+	Category string `json:"category"`
+	Expenses int64  `json:"expenses"`
+	Income   int64  `json:"income"`
+}
+
+type IncomeVsExpenses struct {
+	Expenses int64 `json:"expenses"`
+	Income   int64 `json:"income"`
+}
+
+func (trackerDb *trackerDb) getDashboardData(c echo.Context) error {
+	ctx := context.Background()
+
+	var categories []CategoriesVsExpensesRow
+	err := trackerDb.db.NewSelect().
+		With("expense_data",
+			trackerDb.db.NewSelect().
+				ColumnExpr("c.name as category").
+				ColumnExpr("SUM(CASE WHEN i.type = 'debit' THEN i.cost ELSE 0 END) AS expenses").
+				ColumnExpr("SUM(CASE WHEN i.type = 'credit' THEN i.cost ELSE 0 END) AS income").
+				TableExpr("item i").
+				Join("JOIN category c ON i.category_id = c.id").
+				Group("c.name"),
+		).
+		TableExpr("expense_data").
+		Scan(ctx, &categories)
+	if err != nil {
+		log.Printf("Error while getting categories data: %+v", err)
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+
+	var incomeVsExpenses IncomeVsExpenses
+	err = trackerDb.db.NewSelect().
+		ColumnExpr("SUM(CASE WHEN type = 'debit' THEN cost ELSE 0 END) AS expenses").
+		ColumnExpr("SUM(CASE WHEN type = 'credit' THEN cost ELSE 0 END) AS income").
+		TableExpr("item AS i").
+		Scan(ctx, &incomeVsExpenses)
+	if err != nil {
+		log.Printf("Error while getting income v/s expenses data: %+v", err)
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+
+	successData := map[string]interface{}{
+		"message": "ok",
+		"data": map[string]interface{}{
+			"categories":       categories,
+			"incomeVsExpenses": incomeVsExpenses,
+			"monthly":          categories,
+		},
+	}
+
+	return c.JSON(http.StatusOK, successData)
+}
+
 func main() {
 	db := connect()
 	e := echo.New()
@@ -163,6 +218,7 @@ func main() {
 	apiv1.POST("/item", trackerDb.addItem)
 	apiv1.GET("/items", trackerDb.getAllItems)
 	apiv1.GET("/items/:id", trackerDb.getItemFromId)
+	apiv1.GET("/dashboard-data", trackerDb.getDashboardData)
 	apiv1.DELETE("/items/:id", trackerDb.deleteItem)
 	apiv1.PATCH("/update/item", trackerDb.updateItem)
 
