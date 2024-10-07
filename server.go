@@ -154,6 +154,13 @@ type IncomeVsExpenses struct {
 	Income   int64 `json:"income"`
 }
 
+type MonthlyExpensesRow struct {
+	Month    string `json:"month"`
+	Year     string `json:"year"`
+	Expenses int64  `json:"expenses"`
+	Income   int64  `json:"income"`
+}
+
 func (trackerDb *trackerDb) getDashboardData(c echo.Context) error {
 	ctx := context.Background()
 
@@ -186,12 +193,28 @@ func (trackerDb *trackerDb) getDashboardData(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 
+	var monthly []MonthlyExpensesRow
+	err = trackerDb.db.NewSelect().
+		ColumnExpr("TO_CHAR(\"createdAt\", 'MM') AS month").
+		ColumnExpr("TO_CHAR(\"createdAt\", 'YYYY') AS year").
+		ColumnExpr("sum(case when i.\"type\" = 'debit' then i.\"cost\" else 0 end) as expenses").
+		ColumnExpr("sum(case when i.\"type\" = 'credit' then i.\"cost\" else 0 end) as income").
+		TableExpr("item AS i").
+		Group("month").
+		Group("year").
+		Order("month").
+		Scan(ctx, &monthly)
+	if err != nil {
+		log.Printf("Error while getting monthly data: %+v", err)
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+
 	successData := map[string]interface{}{
 		"message": "ok",
 		"data": map[string]interface{}{
 			"categories":       categories,
 			"incomeVsExpenses": incomeVsExpenses,
-			"monthly":          categories,
+			"monthly":          monthly,
 		},
 	}
 
