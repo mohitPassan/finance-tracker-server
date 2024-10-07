@@ -18,7 +18,12 @@ import (
 
 func connect() *bun.DB {
 	env := NewEnv()
-	dsn := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable", env.DbUser, env.DbPass, env.DbHost, env.DbName)
+	var dsn string
+	if env.AppEnv == "production" {
+		dsn = fmt.Sprintf("postgres://%s:%s@%s/%s", env.DbUser, env.DbPass, env.DbHost, env.DbName)
+	} else {
+		dsn = fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable", env.DbUser, env.DbPass, env.DbHost, env.DbName)
+	}
 	sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
 
 	db := bun.NewDB(sqldb, pgdialect.New())
