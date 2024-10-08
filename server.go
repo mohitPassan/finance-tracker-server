@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/uptrace/bun"
@@ -87,11 +88,20 @@ func (trackerDb *trackerDb) getAllItems(c echo.Context) error {
 	return c.JSON(http.StatusOK, successData)
 }
 
+type GetItem struct {
+	ID         uuid.UUID        `json:"id" bun:"id"`
+	Name       string           `json:"name" bun:"name"`
+	Cost       int              `json:"cost" bun:"cost"`
+	Type       string           `json:"type" bun:"type"`
+	CategoryID uuid.UUID        `json:"category_id" bun:"category_id"`
+	CreatedAt  pgtype.Timestamp `json:"createdAt" bun:"createdAt"`
+}
+
 func (trackerDb *trackerDb) getItemFromId(c echo.Context) error {
 	ctx := context.Background()
 	id := c.Param("id")
 
-	var item Item
+	var item GetItem
 	err := trackerDb.db.NewSelect().TableExpr("item").Where("id = ?", id).Scan(ctx, &item)
 	if err != nil {
 		log.Printf("Could not fetch item: %+v", err)
