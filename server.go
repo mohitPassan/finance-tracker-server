@@ -48,6 +48,7 @@ type Item struct {
 	Cost       int       `json:"cost"`
 	Type       string    `json:"type"`
 	CategoryID uuid.UUID `bun:"type:uuid" json:"category_id"`
+	UserID     int       `bun:"user_id" json:"user_id"`
 }
 
 func (trackerDb *trackerDb) addItem(c echo.Context) error {
@@ -70,11 +71,22 @@ func (trackerDb *trackerDb) addItem(c echo.Context) error {
 	return c.JSON(http.StatusOK, "Done")
 }
 
+type GetAllItemsRow struct {
+	ID         uuid.UUID        `bun:"id" json:"id"`
+	Name       string           `json:"name"`
+	Cost       int              `json:"cost"`
+	Type       string           `json:"type"`
+	CategoryID uuid.UUID        `bun:"type:uuid" json:"category_id"`
+	UserID     int              `bun:"user_id" json:"user_id"`
+	CreatedAt  pgtype.Timestamp `json:"createdAt" bun:"createdAt"`
+}
+
 func (trackerDb *trackerDb) getAllItems(c echo.Context) error {
 	ctx := context.Background()
+	userID := c.QueryParam("user_id")
 
-	var items []Item
-	err := trackerDb.db.NewSelect().Model(&items).Scan(ctx)
+	var items []GetAllItemsRow
+	err := trackerDb.db.NewSelect().TableExpr("item").Where("user_id = ?", userID).Scan(ctx, &items)
 	if err != nil {
 		log.Printf("Error while getting items: %+v", err)
 		return c.JSON(http.StatusInternalServerError, err)
@@ -178,6 +190,7 @@ type MonthlyExpensesRow struct {
 
 func (trackerDb *trackerDb) getDashboardData(c echo.Context) error {
 	ctx := context.Background()
+	userID := c.QueryParam("user_id")
 
 	var categories []CategoriesVsExpensesRow
 	err := trackerDb.db.NewSelect().
@@ -188,6 +201,7 @@ func (trackerDb *trackerDb) getDashboardData(c echo.Context) error {
 				ColumnExpr("SUM(CASE WHEN i.type = 'credit' THEN i.cost ELSE 0 END) AS income").
 				TableExpr("item i").
 				Join("JOIN category c ON i.category_id = c.id").
+				Where("user_id = ?", userID).
 				Group("c.name"),
 		).
 		TableExpr("expense_data").
@@ -202,6 +216,7 @@ func (trackerDb *trackerDb) getDashboardData(c echo.Context) error {
 		ColumnExpr("SUM(CASE WHEN type = 'debit' THEN cost ELSE 0 END) AS expenses").
 		ColumnExpr("SUM(CASE WHEN type = 'credit' THEN cost ELSE 0 END) AS income").
 		TableExpr("item AS i").
+		Where("user_id = ?", userID).
 		Scan(ctx, &incomeVsExpenses)
 	if err != nil {
 		log.Printf("Error while getting income v/s expenses data: %+v", err)
@@ -215,6 +230,7 @@ func (trackerDb *trackerDb) getDashboardData(c echo.Context) error {
 		ColumnExpr("sum(case when i.\"type\" = 'debit' then i.\"cost\" else 0 end) as expenses").
 		ColumnExpr("sum(case when i.\"type\" = 'credit' then i.\"cost\" else 0 end) as income").
 		TableExpr("item AS i").
+		Where("user_id = ?", userID).
 		Group("month").
 		Group("year").
 		Order("month").
