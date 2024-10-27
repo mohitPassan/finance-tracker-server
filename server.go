@@ -85,8 +85,18 @@ func (trackerDb *trackerDb) getAllItems(c echo.Context) error {
 	ctx := context.Background()
 	userID := c.QueryParam("user_id")
 
+<<<<<<< Updated upstream
 	var items []GetAllItemsRow
 	err := trackerDb.db.NewSelect().TableExpr("item").Where("user_id = ?", userID).Scan(ctx, &items)
+=======
+<<<<<<< Updated upstream
+	var items []Item
+	err := trackerDb.db.NewSelect().Model(&items).Scan(ctx)
+=======
+	items := []GetAllItemsRow{}
+	err := trackerDb.db.NewSelect().TableExpr("item").Where("user_id = ?", userID).Scan(ctx, &items)
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 	if err != nil {
 		log.Printf("Error while getting items: %+v", err)
 		return c.JSON(http.StatusInternalServerError, err)
@@ -192,7 +202,7 @@ func (trackerDb *trackerDb) getDashboardData(c echo.Context) error {
 	ctx := context.Background()
 	userID := c.QueryParam("user_id")
 
-	var categories []CategoriesVsExpensesRow
+	categories := []CategoriesVsExpensesRow{}
 	err := trackerDb.db.NewSelect().
 		With("expense_data",
 			trackerDb.db.NewSelect().
@@ -211,7 +221,7 @@ func (trackerDb *trackerDb) getDashboardData(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 
-	var incomeVsExpenses IncomeVsExpenses
+	incomeVsExpenses := []IncomeVsExpenses{}
 	err = trackerDb.db.NewSelect().
 		ColumnExpr("SUM(CASE WHEN type = 'debit' THEN cost ELSE 0 END) AS expenses").
 		ColumnExpr("SUM(CASE WHEN type = 'credit' THEN cost ELSE 0 END) AS income").
@@ -223,7 +233,7 @@ func (trackerDb *trackerDb) getDashboardData(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 
-	var monthly []MonthlyExpensesRow
+	monthly := []MonthlyExpensesRow{}
 	err = trackerDb.db.NewSelect().
 		ColumnExpr("TO_CHAR(\"createdAt\", 'MM') AS month").
 		ColumnExpr("TO_CHAR(\"createdAt\", 'YYYY') AS year").
