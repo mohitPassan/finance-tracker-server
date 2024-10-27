@@ -45,7 +45,7 @@ type Item struct {
 
 	ID         uuid.UUID `bun:"default:gen_random_uuid()" json:"id"`
 	Name       string    `json:"name"`
-	Cost       int       `json:"cost"`
+	Cost       float64   `json:"cost"`
 	Type       string    `json:"type"`
 	CategoryID uuid.UUID `bun:"type:uuid" json:"category_id"`
 	UserID     int       `bun:"user_id" json:"user_id"`
@@ -74,7 +74,7 @@ func (trackerDb *trackerDb) addItem(c echo.Context) error {
 type GetAllItemsRow struct {
 	ID         uuid.UUID        `bun:"id" json:"id"`
 	Name       string           `json:"name"`
-	Cost       int              `json:"cost"`
+	Cost       float64          `json:"cost"`
 	Type       string           `json:"type"`
 	CategoryID uuid.UUID        `bun:"type:uuid" json:"category_id"`
 	UserID     int              `bun:"user_id" json:"user_id"`
@@ -103,10 +103,11 @@ func (trackerDb *trackerDb) getAllItems(c echo.Context) error {
 type GetItem struct {
 	ID         uuid.UUID        `json:"id" bun:"id"`
 	Name       string           `json:"name" bun:"name"`
-	Cost       int              `json:"cost" bun:"cost"`
+	Cost       float64          `json:"cost" bun:"cost"`
 	Type       string           `json:"type" bun:"type"`
 	CategoryID uuid.UUID        `json:"category_id" bun:"category_id"`
 	CreatedAt  pgtype.Timestamp `json:"createdAt" bun:"createdAt"`
+	UserID     int              `bun:"user_id" json:"user_id"`
 }
 
 func (trackerDb *trackerDb) getItemFromId(c echo.Context) error {
@@ -171,21 +172,21 @@ func (trackerDb *trackerDb) updateItem(c echo.Context) error {
 }
 
 type CategoriesVsExpensesRow struct {
-	Category string `json:"category"`
-	Expenses int64  `json:"expenses"`
-	Income   int64  `json:"income"`
+	Category string  `json:"category"`
+	Expenses float64 `json:"expenses"`
+	Income   float64 `json:"income"`
 }
 
 type IncomeVsExpenses struct {
-	Expenses int64 `json:"expenses"`
-	Income   int64 `json:"income"`
+	Expenses float64 `json:"expenses"`
+	Income   float64 `json:"income"`
 }
 
 type MonthlyExpensesRow struct {
-	Month    string `json:"month"`
-	Year     string `json:"year"`
-	Expenses int64  `json:"expenses"`
-	Income   int64  `json:"income"`
+	Month    string  `json:"month"`
+	Year     string  `json:"year"`
+	Expenses float64 `json:"expenses"`
+	Income   float64 `json:"income"`
 }
 
 func (trackerDb *trackerDb) getDashboardData(c echo.Context) error {
@@ -211,7 +212,7 @@ func (trackerDb *trackerDb) getDashboardData(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 
-	incomeVsExpenses := []IncomeVsExpenses{}
+	incomeVsExpenses := IncomeVsExpenses{}
 	err = trackerDb.db.NewSelect().
 		ColumnExpr("SUM(CASE WHEN type = 'debit' THEN cost ELSE 0 END) AS expenses").
 		ColumnExpr("SUM(CASE WHEN type = 'credit' THEN cost ELSE 0 END) AS income").
