@@ -85,18 +85,8 @@ func (trackerDb *trackerDb) getAllItems(c echo.Context) error {
 	ctx := context.Background()
 	userID := c.QueryParam("user_id")
 
-<<<<<<< Updated upstream
-	var items []GetAllItemsRow
-	err := trackerDb.db.NewSelect().TableExpr("item").Where("user_id = ?", userID).Scan(ctx, &items)
-=======
-<<<<<<< Updated upstream
-	var items []Item
-	err := trackerDb.db.NewSelect().Model(&items).Scan(ctx)
-=======
 	items := []GetAllItemsRow{}
 	err := trackerDb.db.NewSelect().TableExpr("item").Where("user_id = ?", userID).Scan(ctx, &items)
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 	if err != nil {
 		log.Printf("Error while getting items: %+v", err)
 		return c.JSON(http.StatusInternalServerError, err)
